@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--augmented_prob", type=float, default=0.0)
     parser.add_argument("--pretrained_model", type=str, default="stabilityai/stable-diffusion-2-1-base")
     parser.add_argument("--stage1_checkpoint_dir", type=str, required=True)
+    parser.add_argument("--single_step_timestep", type=int, default=999)
     parser.add_argument("--train_batch_size", type=int, default=16)
     parser.add_argument("--num_epochs", type=int, default=15)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
@@ -173,10 +174,9 @@ def main() -> None:
                     target_latents = encode_latents(vae, target)
 
                 noise = torch.randn_like(target_latents)
-                timesteps = torch.randint(
-                    0,
-                    noise_scheduler.config.num_train_timesteps,
+                timesteps = torch.full(
                     (target_latents.shape[0],),
+                    int(args.single_step_timestep),
                     device=target_latents.device,
                     dtype=torch.long,
                 )

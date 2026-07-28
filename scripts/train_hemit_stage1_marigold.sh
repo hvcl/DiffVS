@@ -19,6 +19,7 @@ accelerate launch --num_processes "${NUM_PROCESSES}" src/diffvs/train_stage1_mar
   --dataset_root "${DATASET_ROOT}" \
   --split train \
   --markers HEMIT \
+  --image_size 512 \
   --pretrained_model "${PRETRAINED_MODEL}" \
   --train_batch_size "${TRAIN_BATCH_SIZE}" \
   --num_epochs "${NUM_EPOCHS}" \
@@ -27,4 +28,3 @@ accelerate launch --num_processes "${NUM_PROCESSES}" src/diffvs/train_stage1_mar
   --save_every 5 \
   --output_dir "${OUTPUT_DIR}" \
   "$@"
-

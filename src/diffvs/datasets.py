@@ -168,7 +168,7 @@ class HEMITDataset(Dataset):
         self,
         root_dir: str,
         split: str,
-        image_size: int = 256,
+        image_size: int = 512,
         marker_name: str = "HEMIT",
         max_rows: int | None = None,
         random_flip: bool = True,
@@ -196,15 +196,36 @@ class HEMITDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict:
         item = self.examples[index]
-        source = _resize_square(_read_rgb(item.source_path), self.image_size)
-        target = _resize_square(_read_rgb(item.target_path), self.image_size)
+        source = _read_rgb(item.source_path)
+        target = _read_rgb(item.target_path)
+        if source.size != target.size:
+            raise ValueError(f"Mismatched HEMIT pair dimensions: {item.source_path} and {item.target_path}")
+
         if self.random_flip:
             if random.random() < 0.5:
                 source = TF.hflip(source)
                 target = TF.hflip(target)
             if random.random() < 0.5:
-                source = TF.vflip(source)
-                target = TF.vflip(target)
+                angle = random.choice([90, 180, 270])
+                source = TF.rotate(source, angle)
+                target = TF.rotate(target, angle)
+
+        if self.split == "train":
+            width, height = source.size
+            if width < self.image_size or height < self.image_size:
+                raise ValueError(
+                    f"HEMIT training tile is smaller than the {self.image_size}x{self.image_size} crop: "
+                    f"{item.source_path}"
+                )
+            left = random.randint(0, width - self.image_size)
+            top = random.randint(0, height - self.image_size)
+            crop_box = (left, top, left + self.image_size, top + self.image_size)
+            source = source.crop(crop_box)
+            target = target.crop(crop_box)
+
+        else:
+            source = _resize_square(source, self.image_size)
+            target = _resize_square(target, self.image_size)
         return {
             "source": TF.to_tensor(source),
             "target": TF.to_tensor(target),

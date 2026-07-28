@@ -108,7 +108,9 @@ The HEMIT loader treats the dataset as a single target-domain virtual staining t
 The original HEMIT input/target pairs are 1024x1024 tiles extracted from WSIs
 with a 512-pixel stride. For training, we sampled a paired random 512x512 crop
 from each 1024x1024 tile at every iteration, with synchronized horizontal flip
-and 90-degree rotation augmentation.
+and 90-degree rotation augmentation. The released HEMIT training loader and
+both HEMIT training launchers implement this protocol explicitly; the tiles are
+not resized before training.
 
 For the paper test protocol, we first removed overlap at the 1024x1024-tile
 level by retaining tiles whose two `_patch_<row>_<column>` indices were both

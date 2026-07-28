@@ -197,9 +197,12 @@ def main() -> None:
                     timesteps,
                 )
                 predicted_images = decode_latents(vae, predicted_latents)
-                l1_loss = F.l1_loss(predicted_images.float(), target.float(), reduction="mean")
                 l2_loss = F.mse_loss(predicted_images.float(), target.float(), reduction="mean")
-                loss = 0.5 * l1_loss + 0.5 * l2_loss
+                if args.dataset == "hemit":
+                    l1_loss = F.l1_loss(predicted_images.float(), target.float(), reduction="mean")
+                    loss = 0.5 * l1_loss + 0.5 * l2_loss
+                else:
+                    loss = l2_loss
 
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:

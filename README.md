@@ -135,7 +135,7 @@ python scripts/infer_hemit_sliding_window.py \
 The released code mirrors the two-stage procedure in the paper:
 
 1. **Stage 1: Marigold-style training.** Train a paired latent diffusion model conditioned on the source image latent and the marker token.
-2. **Stage 2: Diffusion-FT.** Initialize from the Stage-1 checkpoint and fine-tune at the one-step denoising timestep used for efficient inference.
+2. **Stage 2: Diffusion-FT.** Initialize from the Stage-1 checkpoint, sample a random diffusion timestep, reconstruct the clean latent prediction, decode it with the frozen VAE, and optimize the image-space loss `0.5 * L1 + 0.5 * L2` against the target image.
 
 ### ORION-CRC
 

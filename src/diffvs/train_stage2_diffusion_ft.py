@@ -35,7 +35,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--augmented_prob", type=float, default=0.0)
     parser.add_argument("--pretrained_model", type=str, default="stabilityai/stable-diffusion-2-1-base")
     parser.add_argument("--stage1_checkpoint_dir", type=str, required=True)
-    parser.add_argument("--single_step_timestep", type=int, default=999)
     parser.add_argument("--train_batch_size", type=int, default=16)
     parser.add_argument("--num_epochs", type=int, default=15)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
@@ -56,6 +55,28 @@ def encode_latents(vae: AutoencoderKL, images: torch.Tensor) -> torch.Tensor:
     images = images * 2.0 - 1.0
     latents = vae.encode(images).latent_dist.sample()
     return latents * vae.config.scaling_factor
+
+
+def decode_latents(vae: AutoencoderKL, latents: torch.Tensor) -> torch.Tensor:
+    images = vae.decode(latents / vae.config.scaling_factor).sample
+    return (images / 2.0 + 0.5).clamp(0, 1)
+
+
+def predict_x0(
+    scheduler: DDPMScheduler,
+    noisy_latents: torch.Tensor,
+    model_prediction: torch.Tensor,
+    timesteps: torch.Tensor,
+) -> torch.Tensor:
+    """Convert epsilon/v prediction to a clean latent prediction."""
+    alphas = scheduler.alphas_cumprod.to(device=noisy_latents.device, dtype=noisy_latents.dtype)
+    alpha_t = alphas[timesteps].view(-1, 1, 1, 1)
+    beta_t = 1.0 - alpha_t
+    if scheduler.config.prediction_type == "epsilon":
+        return (noisy_latents - beta_t.sqrt() * model_prediction) / alpha_t.sqrt()
+    if scheduler.config.prediction_type == "v_prediction":
+        return alpha_t.sqrt() * noisy_latents - beta_t.sqrt() * model_prediction
+    raise ValueError(f"Unsupported prediction type: {scheduler.config.prediction_type}")
 
 
 def main() -> None:
@@ -152,9 +173,10 @@ def main() -> None:
                     target_latents = encode_latents(vae, target)
 
                 noise = torch.randn_like(target_latents)
-                timesteps = torch.full(
+                timesteps = torch.randint(
+                    0,
+                    noise_scheduler.config.num_train_timesteps,
                     (target_latents.shape[0],),
-                    int(args.single_step_timestep),
                     device=target_latents.device,
                     dtype=torch.long,
                 )
@@ -162,13 +184,22 @@ def main() -> None:
                 model_input = torch.cat([noisy_target, source_latents], dim=1)
                 marker_context = marker_encoder(marker_ids)
 
-                pred = unet(
+                model_prediction = unet(
                     model_input,
                     timesteps,
                     encoder_hidden_states=marker_context,
                     return_dict=False,
                 )[0]
-                loss = F.mse_loss(pred.float(), noise.float(), reduction="mean")
+                predicted_latents = predict_x0(
+                    noise_scheduler,
+                    noisy_target,
+                    model_prediction,
+                    timesteps,
+                )
+                predicted_images = decode_latents(vae, predicted_latents)
+                l1_loss = F.l1_loss(predicted_images.float(), target.float(), reduction="mean")
+                l2_loss = F.mse_loss(predicted_images.float(), target.float(), reduction="mean")
+                loss = 0.5 * l1_loss + 0.5 * l2_loss
 
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:

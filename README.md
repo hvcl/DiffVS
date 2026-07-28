@@ -23,8 +23,9 @@ DiffVS/
     overview.png
   configs/
     orion_markers.txt
-  scripts/
-    train_orion_stage1_marigold.sh
+scripts/
+  generate_hemit_test_split.py       # reproduce the paper HEMIT test-ID selection
+  train_orion_stage1_marigold.sh
     train_orion_stage2_diffusion_ft.sh
     train_hemit_stage1_marigold.sh
     train_hemit_stage2_diffusion_ft.sh
@@ -100,6 +101,24 @@ Expected layout:
 ```
 
 The HEMIT loader treats the dataset as a single target-domain virtual staining task and uses one learnable target token named `HEMIT`.
+
+### HEMIT preprocessing and paper-test split
+
+The original HEMIT input/target pairs are 1024x1024 tiles extracted from WSIs
+with a 512-pixel stride. For training, we sampled a paired random 512x512 crop
+from each 1024x1024 tile at every iteration, with synchronized horizontal flip
+and 90-degree rotation augmentation.
+
+For the paper test protocol, we first removed overlap at the 1024x1024-tile
+level by retaining tiles whose two `_patch_<row>_<column>` indices were both
+even. We then excluded six empty tiles. The resulting 292 sample IDs, the six
+excluded IDs, and a script that reproduces the selection are provided in
+[`splits/hemit/`](splits/hemit/README.md). The dataset images are not included;
+they remain subject to the HEMIT dataset access terms.
+
+At inference, each selected 1024x1024 tile is processed as 512x512 windows
+with a 256-pixel stride. Thus the model's per-forward input size is 512x512 in
+both training and inference.
 
 ## Training
 
@@ -217,11 +236,14 @@ Large checkpoints and generated outputs are ignored by git.
 If this code or paper is useful for your research, please cite:
 
 ```bibtex
-@article{oh2025virtual,
-  title   = {Virtual Multiplex Staining for Histological Images using a Marker-wise Conditioned Diffusion Model},
-  author  = {Oh, Hyun-Jic and Kim, Junsik and Shi, Zhiyi and Wu, Yichen and Chen, Yu-An and Sorger, Peter K. and Pfister, Hanspeter and Jeong, Won-Ki},
-  journal = {arXiv preprint arXiv:2508.14681},
-  year    = {2025}
+@inproceedings{oh2026virtual,
+  title={Virtual multiplex staining for histological images using a marker-wise conditioned diffusion model},
+  author={Oh, Hyun-Jic and Kim, Junsik and Shi, Zhiyi and Wu, Yichen and Chen, Yu-An and Sorger, Peter K and Pfister, Hanspeter and Jeong, Won-Ki},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={40},
+  number={10},
+  pages={8168--8176},
+  year={2026}
 }
 ```
 

@@ -25,6 +25,7 @@ DiffVS/
     orion_markers.txt
 scripts/
   generate_hemit_test_split.py       # reproduce the paper HEMIT test-ID selection
+  infer_hemit_sliding_window.py      # paper-protocol HEMIT sliding-window inference
   train_orion_stage1_marigold.sh
     train_orion_stage2_diffusion_ft.sh
     train_hemit_stage1_marigold.sh
@@ -118,7 +119,14 @@ they remain subject to the HEMIT dataset access terms.
 
 At inference, each selected 1024x1024 tile is processed as 512x512 windows
 with a 256-pixel stride. Thus the model's per-forward input size is 512x512 in
-both training and inference.
+both training and inference. Use the paper-protocol implementation as follows:
+
+```bash
+python scripts/infer_hemit_sliding_window.py \
+  --dataset-root /path/to/HEMIT \
+  --checkpoint-dir /path/to/stage2-checkpoint \
+  --output-dir ./outputs/hemit_paper_inference
+```
 
 ## Training
 
